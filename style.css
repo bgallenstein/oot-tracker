@@ -313,7 +313,7 @@ label {
     position: relative;
 }
 
-.griditem .tooltip {
+.griditem .tooltip, .griditem .dungeonselector {
     visibility: hidden;
     width: 128px;
     background-color: rgba(0, 0, 0, 1);
@@ -329,8 +329,7 @@ label {
     left: -50%;
 }
 
-/* This is a hack to make a triangle. */
-.griditem .tooltip::after {
+.griditem .tooltip::after, .griditem .dungeonselector::after {
     content: "";
     position: absolute;
     top: calc(100% + 2px);
@@ -348,10 +347,9 @@ label {
     visibility: visible;
 }
 
-.tooltip hr{
+.tooltip hr, .dungeonselector hr{
     border-color: #5f00ff;
 }
-
 
 .griditembackground {
     width: 64;
@@ -368,4 +366,29 @@ label {
 
 #topbar span {
     margin: 0 10px;
+}
+
+.griditem .dungeonselector {
+    visibility: hidden;
+    width: 128px;
+    background-color: rgba(0, 0, 0, 1);
+    color: #fff;
+    text-align: center;
+    border-radius: 6px;
+    padding: 5px 0;
+    position: absolute;
+    z-index: 1;
+    bottom: 112%;
+    border-style: solid;
+    border-color: #5f00ff;
+    left: -50%;
+}
+
+.grid td {
+    cursor:pointer;
+    width:32px; height:32px;
+    background-size: 32px 32px;
+    border:1px solid #5f00ff;
+    text-align:center;
+    font-family:sans-serif; font-size:13px
 }

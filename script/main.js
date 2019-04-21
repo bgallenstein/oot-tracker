@@ -468,7 +468,7 @@ function handleItemPickup(item) {
     var lastCheckOpened = route[route.length - 1];
 
     // If no checks have been opened, do not update the location map
-    if (lastCheckOpened.checkType == CheckType.NONE){
+    if (lastCheckOpened == undefined) {
         return;
     }
 
@@ -505,6 +505,21 @@ function setZoom(target, sender) {
 
     document.getElementById(target + 'size').innerHTML = (sender.value) + '%';
     saveCookie();
+}
+
+/**
+ * Sets which dungeon corresponds to a medallion.
+ * NOTE: this assumes it is being invoked from a dungeon selector
+ *
+ * @param row the row of the medallion in the item grid
+ * @param index the idex of the medallion within the item grid row
+ * @param dungeonIndex the dungeon corresponding to the medallion
+ */
+function setMedallionDungeon(row, index, dungeonIndex) {
+    medallions[itemLayout[row][index]] = dungeonIndex;
+    itemGrid[row][index]["dungeonSelector"].style.visibility = 'hidden';
+    updateGridItem(row, index);
+
 }
 
 function showSettings(sender) {
@@ -643,13 +658,36 @@ function createItemTracker(sender) {
             itemGrid[r][i]['item'].className = 'griditem';
             tr.appendChild(itemGrid[r][i]['item']);
 
-            // Add tooltip
-            var tooltip = document.createElement('div');
-            tooltip.className = "tooltip";
-            // Set opacity to 0 as a hack to control visibility (since visibility is separately managed through CSS)
-            tooltip.style.opacity = 1;
-            itemGrid[r][i]['tooltip'] = tooltip;
-            itemGrid[r][i]['item'].appendChild(tooltip);
+            // Add dungeon selector popup if the item is a medallion
+            if (medallions[defaultItemGrid[r][i]] !== undefined) {
+                var dungeonSelector = document.createElement('div');
+                dungeonSelector.className = "dungeonSelector";
+
+                var dungeonSelectorGrid = document.createElement('table');
+                dungeonSelectorGrid.className = 'grid';
+                var gridIndex = 0;
+                for (var row = 0; row < 2; ++row) {
+                    var selectorRow = dungeonSelectorGrid.appendChild(document.createElement('tr'));
+                    for (var col = 0; col < 4; ++col) {
+                        var cell = selectorRow.appendChild(document.createElement('td'));
+                        cell.style.backgroundImage = 'url(images/' + dungeonImg[++gridIndex] + '.png)';
+                        cell.onclick = new Function("setMedallionDungeon(" + r + "," + i + "," + gridIndex + ")");
+                    }
+                }
+
+                dungeonSelector.appendChild(dungeonSelectorGrid);
+
+                itemGrid[r][i]['dungeonSelector'] = dungeonSelector;
+                itemGrid[r][i]['item'].appendChild(dungeonSelector);
+            } else {
+                // Add tooltip
+                var tooltip = document.createElement('div');
+                tooltip.className = "tooltip";
+
+                itemGrid[r][i]['tooltip'] = tooltip;
+                itemGrid[r][i]['item'].appendChild(tooltip);
+
+            }
 
             // Add child with bg img
             var gridItemBackground = document.createElement('div');
@@ -701,7 +739,7 @@ function updateGridItem(row, index) {
     var itemTooltipDOM = itemGrid[row][index]['tooltip'];
 
     // If item is blank, a medallion, or skulls, ensure no tooltip is shown
-    if (!item || item == 'blank' || medallions[item] !== undefined || item.includes("Skulltula")) {
+    if (itemTooltipDOM != undefined && (!item || item == 'blank' || medallions[item] !== undefined || item.includes("Skulltula"))) {
         itemTooltipDOM.style.opacity = 0;
     }
 
@@ -737,7 +775,7 @@ function updateGridItem(row, index) {
     itemDOM.className = 'griditembackground ' + !!items[item];
 
     // If this item has associated locations and is not a tooltip-less type
-    if (itemLocationMap[item] != undefined && !(!item || item == 'blank' || medallions[item] !== undefined || item.includes("Skulltula"))) {
+    if (itemTooltipDOM != undefined && itemLocationMap[item] != undefined && !(!item || item == 'blank' || medallions[item] !== undefined || item.includes("Skulltula"))) {
         // Create an unordered list of locations
         var tooltipListDOM = document.createElement('ul');
         if (!itemTooltipDOM.firstChild) {
@@ -757,7 +795,7 @@ function updateGridItem(row, index) {
         }
 
         itemTooltipDOM.style.opacity = 1;
-    } else {
+    } else if (itemTooltipDOM != undefined) {
         if (itemTooltipDOM.firstChild) {
             itemTooltipDOM.firstChild.remove();
         }
@@ -845,10 +883,7 @@ function gridItemClick(row, col, corner) {
     if (medallions[item] !== undefined && showprizes) {
         // Case when you click the question mark corner
         if (corner == 3) {
-            medallions[item]++;
-            if (medallions[item] >=  9) {
-                medallions[item] = 0;
-            }
+            itemGrid[row][col]["dungeonSelector"].style.visibility = 'visible';
         } else {
             // Case when you click the medallion itself
             items[item] = !items[item];
@@ -938,9 +973,6 @@ function gridItemClickEdit(row, col, corner) {
         selected = {row: row, col: col};
     }
 }
-
-
-
 
 function updateMap() {
     for (k = 0; k < chests.length; k++) {
