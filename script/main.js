@@ -624,7 +624,7 @@ function ResetTracker() {
     chests.forEach(chest => delete chest.isOpened);
     dungeons.forEach(dungeon => Object.values(dungeon.chestlist).forEach(chest => delete chest.isOpened));
     items = Object.assign(baseItems);
-    medallions = defaultMedallions;
+    medallions = JSON.parse(JSON.stringify(defaultMedallions));
 
     updateGridItemAll();
     updateMap();
