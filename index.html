@@ -3,14 +3,21 @@
         <title>Ocarina of Time Item Tracker</title>
         <meta charset="UTF-8">
         <link rel="stylesheet" href="style.css" type="text/css">
-    
+
         <script src="script/items.js"></script>
         <script src="script/chests.js"></script>
         <script src="script/main.js"></script>
     </head>
 
     <body>
-    
+
+    <div id="topbar" style="height: 50px">
+        <span style="margin-left: 65px"> Time: </span>
+        <span id='timer'> 0:00:00 </span>
+        <span> Number of Checks: </span>
+        <span id='checkCount'> 0 / 254 </span>
+    </div>
+
         <div id='layoutdiv'>
             <div id='itemdiv' class='itemdiv'>
             </div>
@@ -23,9 +30,9 @@
                 </div>
             </div>
         </div>
-        
+
         <!-- Setting panel-->
-        
+
         <button id='settingsbutton' type='button' onclick='showSettings(this)'>🔧</button>
         <fieldset id='settings' class='settings'>
             <legend>Settings</legend>
@@ -56,16 +63,15 @@
                 </fieldset>
             </fieldset>
         </fieldset>
-        
+
         <table id='itemconfig' class='itemconfig' style='display:none'></table>
-        
+
         <script>
             init();
         </script>
-        
+
         <footer style='bottom:0; width:100%; text-align: center; position: relative; color:grey'>
             Ocarina of Time Item Randomizer Tracker v1.2
         </footer>
     </body>
 </html>
-

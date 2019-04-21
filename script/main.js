@@ -21,8 +21,10 @@ var dungeonImg = [
     'HoverBoots',
     'MirrorShield'
 ];
-ganonlogic = 'Open';
-showprizes = false;
+ganonlogic = 'Medallions';
+showprizes = true;
+
+var TOTAL_CHECKS = 254;
 
 var itemGrid = [];
 var itemLayout = [];
@@ -32,33 +34,41 @@ var selected = {};
 
 var dungeonSelect = 0;
 
-var CheckTypes = {
-    NONE : 'none',
+var startTime;
+
+// Ordered list of CheckData that will build out a route
+var route = [];
+
+/* Enum of what type of check a checkData is */
+var CheckType = {
     DUNGEON : 'dungeon',
     CHEST : 'chest'
 }
 
-// TODO: Update this to keep a list of all checks to establish a route (run analytics?!?)
-var lastCheckOpened = {
-    checkType: CheckTypes.NONE,
-    dungeonIndex : 0,
-    chestIndex : 0,
-    inLogic : true,
+/**
+ * Class used to fully define the event of opening a check.
+ */
+function CheckData(checkType, dungeonIndex, chestIndex, inLogic) {
+    this.checkType = checkType;
+    this.dungeonIndex = dungeonIndex;
+    this.chestIndex = chestIndex;
+    this.inLogic = inLogic;
+    this.timestamp = new Date();
+}
 
-    getCheckName : function() {
-        switch(this.checkType) {
-          case CheckTypes.NONE:
-              return undefined;
+CheckData.prototype.getCheckName = function() {
+    switch(this.checkType) {
+      case CheckType.NONE:
+          return undefined;
 
-          case CheckTypes.DUNGEON:
-              return dungeons[this.dungeonIndex].name + " - " + this.chestIndex;
+      case CheckType.DUNGEON:
+          return dungeons[this.dungeonIndex].name + " - " + this.chestIndex;
 
-          case CheckTypes.CHEST:
-              return chests[this.chestIndex].name;
+      case CheckType.CHEST:
+          return chests[this.chestIndex].name;
 
-          default:
-            return undefined;
-        }
+      default:
+        return undefined;
     }
 };
 
@@ -90,9 +100,9 @@ function getCookie() {
 var cookieDefault = {
     map: 1,
     iZoom: 100,
-    mZoom: 100,
+    mZoom: 66,
     mPos: 0,
-    glogic: 'Open',
+    glogic: 'Medallions',
     prize: 1,
     medallions: defaultMedallions,
     items: defaultItemGrid,
@@ -208,13 +218,43 @@ function deserializeDungeonChests(serializedDungeons) {
     }
 }
 
+function updateTime() {
+    if (startTime == undefined) {
+        return;
+    }
+    var currentTime = new Date();
+    var timerDOM = document.getElementById('timer');
+    var timeMillis = currentTime - startTime
+    var timeHours = Math.floor(timeMillis / 1000 / 60 / 60);
+    var timeMinutes = Math.floor(timeMillis / 1000 / 60 - timeHours * 60);
+    var timeSeconds = Math.floor(timeMillis / 1000 - (timeMinutes * 60) - (timeHours * 60 * 60))
+
+    if (timeMinutes < 10) {
+        timeMinutes = "0" + timeMinutes
+    }
+
+    if (timeSeconds < 10) {
+        timeSeconds = "0" + timeSeconds
+    }
+
+    timerDOM.innerHTML = timeHours + ":" + timeMinutes + ":" + timeSeconds;
+}
+
+setInterval(updateTime, 1000);
+
 // Event of clicking a chest on the map
 function toggleChest(chestIndex) {
     chests[chestIndex].isOpened = !chests[chestIndex].isOpened;
+    var inLogic = chests[chestIndex].isAvailable();
+
+    checkData = new CheckData(CheckType.CHEST, null, chestIndex, chests[chestIndex].isAvailable() == 'available');
 
     // Update last opened check
     if (chests[chestIndex].isOpened) {
-      setLastCheckOpened(CheckTypes.CHEST, null, chestIndex, chests[chestIndex].isAvailable() == 'available');
+        addToRoute(checkData);
+
+    } else {
+        removeFromRoute(checkData);
     }
 
     refreshChest(chestIndex);
@@ -285,17 +325,23 @@ function clickDungeon(d) {
 
 function toggleDungeonChest(sender, dungeonIndex, chestIndex) {
     dungeons[dungeonIndex].chestlist[chestIndex].isOpened = !dungeons[dungeonIndex].chestlist[chestIndex].isOpened;
+    var inLogic = dungeons[dungeonIndex].chestlist[chestIndex].isAvailable();
+
+    // Create a check data from this check
+    var checkData = new CheckData(CheckType.DUNGEON, dungeonIndex, chestIndex, inLogic)
+
     if (dungeons[dungeonIndex].chestlist[chestIndex].isOpened) {
         sender.className = 'DCopened';
 
-        // Update last opened check
-        var inLogic = dungeons[dungeonIndex].chestlist[chestIndex].isAvailable();
-        setLastCheckOpened(CheckTypes.DUNGEON, dungeonIndex, chestIndex, inLogic)
+        // Update last opened check and add to route
+        addToRoute(checkData);
 
     } else if (dungeons[dungeonIndex].chestlist[chestIndex].isAvailable()) {
         sender.className = 'DCavailable';
+        removeFromRoute(checkData);
     } else {
         sender.className = 'DCunavailable';
+        removeFromRoute(checkData);
     }
 
     updateMap();
@@ -318,10 +364,16 @@ function toggleDungeon(sender, dungeonIndex) {
         // Close all chests and set their class to the appropriate value based on their availability
         for (var chestIndex = 0; chestIndex < chestlistNames.length; chestIndex++) {
             var currentChestName = chestlistNames[chestIndex];
-            dungeons[dungeonIndex].chestlist[currentChestName].isOpened = false;
-            sender.className = dungeons[dungeonIndex].chestlist[currentChestName].isAvailable()
-                    ? 'DCavailable'
-                    : 'DCunavailable';
+
+            if (dungeons[dungeonIndex].chestlist[currentChestName].isOpened == true) {
+              var checkData = new CheckData(CheckType.DUNGEON, dungeonIndex, currentChestName, dungeons[dungeonIndex].chestlist[currentChestName].isAvailable)
+
+              dungeons[dungeonIndex].chestlist[currentChestName].isOpened = false;
+              sender.className = dungeons[dungeonIndex].chestlist[currentChestName].isAvailable()
+                      ? 'DCavailable'
+                      : 'DCunavailable';
+                      removeFromRoute(checkData);
+            }
         }
     // If the dungeon is not cleared (regardless of availability logic)
     } else if (sender.className == 'DCavailable'
@@ -330,8 +382,13 @@ function toggleDungeon(sender, dungeonIndex) {
         // Open all of the chests
         for (var chestIndex = 0; chestIndex < chestlistNames.length; chestIndex++) {
             var currentChestName = chestlistNames[chestIndex];
-            dungeons[dungeonIndex].chestlist[currentChestName].isOpened = true;
-            sender.className = 'DCopened';
+
+            if (dungeons[dungeonIndex].chestlist[currentChestName].isOpened == false) {
+                var checkData = new CheckData(CheckType.DUNGEON, dungeonIndex, currentChestName, dungeons[dungeonIndex].chestlist[currentChestName].isAvailable)
+                dungeons[dungeonIndex].chestlist[currentChestName].isOpened = true;
+                sender.className = 'DCopened';
+                addToRoute(checkData);
+          }
         }
     } else {
         throw "Dungeon title DOM object was not of an expected class";
@@ -373,19 +430,32 @@ function setGanonLogic(sender) {
     saveCookie();
 }
 
+function addToRoute(checkData) {
+  route.push(checkData);
+
+  if (route.length == 1) {
+    startTime = new Date();
+  }
+
+  checkCountDOM = document.getElementById("checkCount");
+  checkCountDOM.innerHTML = route.length + "/" + TOTAL_CHECKS;
+}
+
 /**
- * Updates global variable to track the last opened check
+ * Removes a check from the route.
  *
- * @param {checkType} checkType type of check
- * @param {number} dungeonIndex index in the main dungeon list where the check was done (null if checkType is CHEST)
- * @param {number} chestIndex index in either the dungeon chestlist or the main chest list corresponding to the check
- * @param {boolean} inLogic whether or not the check was in logic
+ * @param checkData check to remove from the route
  */
-function setLastCheckOpened(checkType, dungeonIndex, chestIndex, inLogic) {
-    lastCheckOpened.checkType = checkType;
-    lastCheckOpened.dungeonIndex = dungeonIndex;
-    lastCheckOpened.chestIndex = chestIndex;
-    lastCheckOpened.inLogic = inLogic;
+function removeFromRoute(checkData) {
+    for (var i = 0; i < route.length; i++) {
+        if (route[i].getCheckName() == checkData.getCheckName()) {
+            route.splice(i, 1);
+
+            checkCountDOM = document.getElementById("checkCount");
+            checkCountDOM.innerHTML = route.length + "/" + TOTAL_CHECKS;
+            return;
+        }
+    }
 }
 
 /**
@@ -395,18 +465,19 @@ function setLastCheckOpened(checkType, dungeonIndex, chestIndex, inLogic) {
  * @param {string} item the name of the item that was picked up
  */
 function handleItemPickup(item) {
+    var lastCheckOpened = route[route.length - 1];
+
     // If no checks have been opened, do not update the location map
-    if (lastCheckOpened.checkType == CheckTypes.NONE){
+    if (lastCheckOpened.checkType == CheckType.NONE){
         return;
     }
 
     // Make a deep copy of lastCheckOpened
-    var checkData = {
-        checkType : lastCheckOpened.checkType,
-        dungeonIndex : lastCheckOpened.dungeonIndex,
-        chestIndex : lastCheckOpened.chestIndex,
-        getCheckName : lastCheckOpened.getCheckName
-    }
+    var checkData = new CheckData(
+          lastCheckOpened.checkType,
+          lastCheckOpened.dungeonIndex,
+          lastCheckOpened.chestIndex,
+          lastCheckOpened.getCheckName);
 
     if (itemLocationMap[item] == undefined) {
       itemLocationMap[item] = [];
@@ -684,7 +755,7 @@ function updateGridItem(row, index) {
               tooltipListDOM.appendChild(document.createElement('hr'));
           }
         }
-        
+
         itemTooltipDOM.style.opacity = 1;
     } else {
         if (itemTooltipDOM.firstChild) {

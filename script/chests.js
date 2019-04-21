@@ -1,3 +1,15 @@
+var OverworldRegion = {
+    HYRULE_FIELD : 'Hyrule Field',
+    KOKIRI : 'Kokiri Forest',
+    ZORAS_RIVER : 'Zora\'s River',
+    GERUDO_VALLEY: 'Gerudo Valley',
+    GERUDO_FORTRESS: 'Gerudo Fortress',
+    WASTELAND: "Wasteland",
+    LAKE_HYLIA: "Lake Hylia",
+    LON_LON: "Lon Lon Ranch",
+    DESERT_COLOSSUS: "Desert Colossus"
+}
+
 function generalCanGetChest(chestlist) {
     var canGet = 0;
     var unopened = 0;
@@ -822,6 +834,7 @@ var dungeons = [
 var chests = [
     {
         name: "Kokiri Sword Chest",
+        region: OverworldRegion.KOKIRI,
         x: "76.0%",
         y: "63.5%",
         isAvailable: function() {
@@ -830,14 +843,25 @@ var chests = [
     },
     {
         name: "Mido's House (4)",
+        region: OverworldRegion.KOKIRI,
         x: "78.5%",
         y: "58.0%",
         isAvailable: function() {
             return "available";
         },
     },
+    /*{
+        name: "Saria on the Bridge",
+        region: OverworldRegion.KOKIRI,
+        x: "74.5%",
+        y: "57.5%",
+        isAvailable: function() {
+            return "available";
+        },
+    },*/
     {
         name: "Kokiri Song of Storms Grotto",
+        region: OverworldRegion.KOKIRI,
         x: "77.5%",
         y: "54.5%",
         isAvailable: function() {
@@ -849,6 +873,7 @@ var chests = [
     },
     {
         name: "Song of Time",
+        region: OverworldRegion.HYRULE_FIELD,
         x: "52.3%",
         y: "30.5%",
         isAvailable: function() {
@@ -859,7 +884,8 @@ var chests = [
         },
     },
     {
-        name: "Hyrule Field North Grotto",
+        name: "Boulder of Destiny",
+        region: OverworldRegion.HYRULE_FIELD,
         x: "50.0%",
         y: "28.0%",
         isAvailable: function() {
@@ -871,6 +897,7 @@ var chests = [
     },
     {
         name: "Hyrule Field Forest Grotto",
+        region: OverworldRegion.HYRULE_FIELD,
         x: "60.0%",
         y: "59.0%",
         isAvailable: function() {
@@ -881,7 +908,8 @@ var chests = [
         },
     },
     {
-        name: "Hyrule Field South Grotto",
+        name: "Hyrule Field Open Grotto",
+        region: OverworldRegion.HYRULE_FIELD,
         x: "44.5%",
         y: "64.0%",
         isAvailable: function() {
@@ -890,6 +918,7 @@ var chests = [
     },
     {
         name: "Hyrule Field Deku Salesman Grotto",
+        region: OverworldRegion.HYRULE_FIELD,
         x: "42.0%",
         y: "64.0%",
         isAvailable: function() {
@@ -900,7 +929,8 @@ var chests = [
         },
     },
     {
-        name: "Diving Heart Piece Grotto",
+        name: "Tektite Grotto",
+        region: OverworldRegion.HYRULE_FIELD,
         x: "44.0%",
         y: "32.0%",
         isAvailable: function() {
@@ -912,6 +942,7 @@ var chests = [
     },
     {
         name: "Talon's Chickens Minigame",
+        region: OverworldRegion.LON_LON,
         x: "49.0%",
         y: "38.0%",
         isAvailable: function() {
@@ -920,6 +951,7 @@ var chests = [
     },
     {
         name: "Epona's Song",
+        region: OverworldRegion.LON_LON,
         x: "47.0%",
         y: "41.5%",
         isAvailable: function() {
@@ -928,6 +960,7 @@ var chests = [
     },
     {
         name: "Lon Lon Heart Piece",
+        region: OverworldRegion.LON_LON,
         x: "44.0%",
         y: "43.5%",
         isAvailable: function() {
@@ -936,6 +969,7 @@ var chests = [
     },
     {
         name: "Underwater Bottle",
+        region: OverworldRegion.LAKE_HYLIA,
         x: "38.6%",
         y: "80.0%",
         isAvailable: function() {
@@ -946,6 +980,7 @@ var chests = [
     },
     {
         name: "Lake Hylia Sun",
+        region: OverworldRegion.LAKE_HYLIA,
         x: "41.5%",
         y: "91.0%",
         isAvailable: function() {
@@ -957,6 +992,7 @@ var chests = [
     },
     {
         name: "Diving in the Lab",
+        region: OverworldRegion.LAKE_HYLIA,
         x: "35.2%",
         y: "77.4%",
         isAvailable: function() {
@@ -967,6 +1003,7 @@ var chests = [
     },
     {
         name: "Lab Roof Heart Piece",
+        region: OverworldRegion.LAKE_HYLIA,
         x: "35.2%",
         y: "74.0%",
         isAvailable: function() {
@@ -978,6 +1015,7 @@ var chests = [
     },
     {
         name: "Child Fishing",
+        region: OverworldRegion.LAKE_HYLIA,
         x: "45.0%",
         y: "78.0%",
         isAvailable: function() {
@@ -986,6 +1024,7 @@ var chests = [
     },
     {
         name: "Adult Fishing",
+        region: OverworldRegion.LAKE_HYLIA,
         x: "46.9%",
         y: "78.0%",
         isAvailable: function() {
@@ -997,6 +1036,7 @@ var chests = [
     },
     {
         name: "Gerudo Valley Hammer Rocks Chest",
+        region: OverworldRegion.GERUDO_VALLEY,
         x: "22.0%",
         y: "38.0%",
         isAvailable: function() {
@@ -1008,6 +1048,7 @@ var chests = [
     },
     {
         name: "Gerudo Valley Crate Heart Piece",
+        region: OverworldRegion.GERUDO_VALLEY,
         x: "24.0%",
         y: "41.5%",
         isAvailable: function() {
@@ -1016,6 +1057,7 @@ var chests = [
     },
     {
         name: "Gerudo Valley Waterfall Heart Piece",
+        region: OverworldRegion.GERUDO_VALLEY,
         x: "25.5%",
         y: "32.0%",
         isAvailable: function() {
@@ -1024,6 +1066,7 @@ var chests = [
     },
     {
         name: "Gerudo Fortress Rooftop Chest",
+        region: OverworldRegion.GERUDO_FORTRESS,
         x: "18.8%",
         y: "23.0%",
         isAvailable: function() {
@@ -1035,6 +1078,7 @@ var chests = [
     },
     {
         name: "Horseback Archery Game 1000pts",
+        region: OverworldRegion.GERUDO_FORTRESS,
         x: "21.7%",
         y: "28.0%",
         isAvailable: function() {
@@ -1046,6 +1090,7 @@ var chests = [
     },
     {
         name: "Horseback Archery Game 1500pts",
+        region: OverworldRegion.GERUDO_FORTRESS,
         x: "23.5%",
         y: "28.0%",
         isAvailable: function() {
@@ -1057,6 +1102,7 @@ var chests = [
     },
     {
         name: "Haunted Wasteland Chest",
+        region: OverworldRegion.WASTELAND,
         x: "14.0%",
         y: "25.0%",
         isAvailable: function() {
@@ -1068,6 +1114,7 @@ var chests = [
     },
     {
         name: "Requiem of Spirit",
+        region: OverworldRegion.DESERT_COLOSSUS,
         x: "04.5%",
         y: "21.5%",
         isAvailable: function() {
@@ -1079,6 +1126,7 @@ var chests = [
     },
     {
         name: "Desert Colossus Fairy",
+        region: OverworldRegion.DESERT_COLOSSUS,
         x: "08.0%",
         y: "19.0%",
         isAvailable: function() {
@@ -1090,6 +1138,7 @@ var chests = [
     },
     {
         name: "Desert Colossus Heart Piece",
+        region: OverworldRegion.DESERT_COLOSSUS,
         x: "06.4%",
         y: "23.5%",
         isAvailable: function() {
@@ -1101,6 +1150,7 @@ var chests = [
     },
     {
         name: "Frog Ocarina Game",
+        region: OverworldRegion.ZORAS_RIVER,
         x: "79.8%",
         y: "32.0%",
         isAvailable: function() {
@@ -1112,6 +1162,7 @@ var chests = [
     },
     {
         name: "Frogs in the Rain",
+        region: OverworldRegion.ZORAS_RIVER,
         x: "78.0%",
         y: "32.0%",
         isAvailable: function() {
@@ -1123,6 +1174,7 @@ var chests = [
     },
     {
         name: "Zora River Heart Piece 1",
+        region: OverworldRegion.ZORAS_RIVER,
         x: "75.0%",
         y: "30.0%",
         isAvailable: function() {
@@ -1134,6 +1186,7 @@ var chests = [
     },
     {
         name: "Zora River Heart Piece 2",
+        region: OverworldRegion.ZORAS_RIVER,
         x: "86.0%",
         y: "29.2%",
         isAvailable: function() {
@@ -1145,18 +1198,11 @@ var chests = [
     },
     {
         name: "Zora River Grotto",
+        region: OverworldRegion.ZORAS_RIVER,
         x: "75.5%",
         y: "34.5%",
         isAvailable: function() {
             return "available";
         },
-    },
-    {
-        name: "Saria on the Bridge",
-        x: "74.5%",
-        y: "57.5%",
-        isAvailable: function() {
-            return "available";
-        },
-    },
+    }
 ]
