@@ -547,19 +547,19 @@ function buildRouteGraph(containerDOM) {
     var data = [];
     var durations = [];
 
-    data.push(["", ...Object.values(locations)]);
+    //data.push(["", ...Object.values(locations)]);
 
     for (var i = 0; i < route.length; i++) {
 
-        var endTime = route[i + 1] != undefined ? route[i+1].timestamp.getTime() : Math.floor(route[i].timestamp.getTime() + durations.reduce(function(a, b) { return a + b; }) / durations.length);
-        var duration = endTime - route[i].timestamp.getTime();
+        //var endTime = route[i - 1] != undefined ? route[i].timestamp.getTime() - route[i-1].timestamp.getTime() : 0);
+        var duration = route[i - 1] != undefined ? route[i].timestamp.getTime() - route[i-1].timestamp.getTime() : 0;
         durations.push(duration);
         var totalDur = durations.reduce(function(a, b) { return a + b; });
 
         locations[route[i].location] += duration;
 
         //data.push([route[i].getCheckName(), ...Object.values(locations)]);
-        data.push([totalDur, ...Object.values(locations)]);
+        data.push([i, ...Object.values(locations)]);
     }
 
     anychart.onDocumentReady(function () {
@@ -631,10 +631,11 @@ function buildRouteGraph(containerDOM) {
             return new Date(this.x).toISOString().substring(12, 19);
         });
 
-        chart.tooltip().format(function () {
-            return new Date(this.x).toISOString().substring(12, 19);
-        });
+        //chart.tooltip().format(function () {
+        //    return new Date(this.x).toISOString().substring(12, 19);
+        //});
 
+        //chart.xScale(anychart.scales.dateTime());
 
         // set container id for the chart
         chart.container('routeGraphDiv');
