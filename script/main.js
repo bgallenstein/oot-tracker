@@ -48,11 +48,12 @@ var CheckType = {
 /**
  * Class used to fully define the event of opening a check.
  */
-function CheckData(checkType, dungeonIndex, chestIndex, inLogic) {
+function CheckData(checkType, dungeonIndex, chestIndex, inLogic, location) {
     this.checkType = checkType;
     this.dungeonIndex = dungeonIndex;
     this.chestIndex = chestIndex;
     this.inLogic = inLogic;
+    this.location = location;
     this.timestamp = new Date();
 }
 
@@ -247,7 +248,7 @@ function toggleChest(chestIndex) {
     chests[chestIndex].isOpened = !chests[chestIndex].isOpened;
     var inLogic = chests[chestIndex].isAvailable();
 
-    checkData = new CheckData(CheckType.CHEST, null, chestIndex, chests[chestIndex].isAvailable() == 'available');
+    checkData = new CheckData(CheckType.CHEST, null, chestIndex, chests[chestIndex].isAvailable() == 'available', chests[chestIndex].region);
 
     // Update last opened check
     if (chests[chestIndex].isOpened) {
@@ -328,7 +329,7 @@ function toggleDungeonChest(sender, dungeonIndex, chestIndex) {
     var inLogic = dungeons[dungeonIndex].chestlist[chestIndex].isAvailable();
 
     // Create a check data from this check
-    var checkData = new CheckData(CheckType.DUNGEON, dungeonIndex, chestIndex, inLogic)
+    var checkData = new CheckData(CheckType.DUNGEON, dungeonIndex, chestIndex, inLogic, dungeons[dungeonIndex].name)
 
     if (dungeons[dungeonIndex].chestlist[chestIndex].isOpened) {
         sender.className = 'DCopened';
@@ -366,7 +367,7 @@ function toggleDungeon(sender, dungeonIndex) {
             var currentChestName = chestlistNames[chestIndex];
 
             if (dungeons[dungeonIndex].chestlist[currentChestName].isOpened == true) {
-              var checkData = new CheckData(CheckType.DUNGEON, dungeonIndex, currentChestName, dungeons[dungeonIndex].chestlist[currentChestName].isAvailable)
+              var checkData = new CheckData(CheckType.DUNGEON, dungeonIndex, currentChestName, dungeons[dungeonIndex].chestlist[currentChestName].isAvailable, dungeons[dungeonIndex].name)
 
               dungeons[dungeonIndex].chestlist[currentChestName].isOpened = false;
               sender.className = dungeons[dungeonIndex].chestlist[currentChestName].isAvailable()
@@ -384,7 +385,7 @@ function toggleDungeon(sender, dungeonIndex) {
             var currentChestName = chestlistNames[chestIndex];
 
             if (dungeons[dungeonIndex].chestlist[currentChestName].isOpened == false) {
-                var checkData = new CheckData(CheckType.DUNGEON, dungeonIndex, currentChestName, dungeons[dungeonIndex].chestlist[currentChestName].isAvailable)
+                var checkData = new CheckData(CheckType.DUNGEON, dungeonIndex, currentChestName, dungeons[dungeonIndex].chestlist[currentChestName].isAvailable, dungeons[dungeonIndex].name)
                 dungeons[dungeonIndex].chestlist[currentChestName].isOpened = true;
                 sender.className = 'DCopened';
                 addToRoute(checkData);
@@ -477,7 +478,8 @@ function handleItemPickup(item) {
           lastCheckOpened.checkType,
           lastCheckOpened.dungeonIndex,
           lastCheckOpened.chestIndex,
-          lastCheckOpened.getCheckName);
+          lastCheckOpened.getCheckName,
+          lastCheckOpened.location);
 
     if (itemLocationMap[item] == undefined) {
       itemLocationMap[item] = [];
@@ -520,6 +522,130 @@ function setMedallionDungeon(row, index, dungeonIndex) {
     itemGrid[row][index]["dungeonSelector"].style.visibility = 'hidden';
     updateGridItem(row, index);
 
+}
+
+function buildRouteGraph(containerDOM) {
+    var colors = [];
+
+    scm = new ColorScheme;
+    scm.from_hue(920099)
+       .scheme('tetrade')
+       .distance(1)
+       .web_safe(true);
+
+    colors = scm.colors();
+
+    for (let i = colors.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [colors[i], colors[j]] = [colors[j], colors[i]];
+    }
+
+    var color = 0;
+    var locations = {};
+    route.forEach(check => locations[check.location] = 0);
+
+    var data = [];
+    var durations = [];
+
+    data.push(["", ...Object.values(locations)]);
+
+    for (var i = 0; i < route.length; i++) {
+
+        var endTime = route[i + 1] != undefined ? route[i+1].timestamp.getTime() : Math.floor(route[i].timestamp.getTime() + durations.reduce(function(a, b) { return a + b; }) / durations.length);
+        var duration = endTime - route[i].timestamp.getTime();
+        durations.push(duration);
+        var totalDur = durations.reduce(function(a, b) { return a + b; });
+
+        locations[route[i].location] += duration;
+
+        //data.push([route[i].getCheckName(), ...Object.values(locations)]);
+        data.push([totalDur, ...Object.values(locations)]);
+    }
+
+    anychart.onDocumentReady(function () {
+
+        // create data set on our data
+        var dataSet = anychart.data.set(data);
+
+        var series = [];
+        Object.values(locations).forEach(location => series.push(dataSet.mapAs({'x': 0, 'value': series.length + 1})))
+
+        // create bar chart
+        var chart = anychart.area();
+
+        // turn on chart animation
+        chart.animation(true);
+
+        // force chart to stack values by Y scale.
+        chart.yScale().stackMode('value');
+
+        // turn on the crosshair
+        chart.crosshair().enabled(true).yLabel().enabled(false);
+        chart.crosshair().enabled(true).xLabel().enabled(false);
+        chart.crosshair().yStroke(null).xStroke('#fff').zIndex(99);
+
+        // helper function to setup label settings for all series
+        var setupSeries = function (seriesData, name) {
+            var s = chart.area(seriesData);
+            s.stroke('3 #fff 1');
+            s.fill(function () {
+                return this.sourceColor + ' 0.8'
+            });
+            s.name(name);
+            s.markers().zIndex(100);
+            s.clip(false);
+            s.hovered()
+                .stroke('3 #fff 1')
+                .markers().enabled(true).type('circle').size(4).stroke('1.5 #fff');
+        };
+
+        for (var i = 0; i < Object.values(locations).length; i++) {
+            setupSeries(series[i], Object.keys(locations)[i])
+        }
+
+        // set interactivity and toolitp settings
+        chart.interactivity().hoverMode('by-x');
+        chart.tooltip().displayMode('union');
+
+        // turn on legend
+        chart.legend().enabled(true).fontSize(13).padding([0, 0, 25, 0]);
+
+        /*
+        // create barmekko chart with data
+        var chart = anychart.barmekko(data);
+        // set chart title text settings
+        //chart.title('Government Requests to Facebook for Data, by Country');
+
+        // set chart padding
+        //chart.padding().left(75);
+
+        // enabled labels
+        chart.labels(true);
+
+        // set tooltip settings
+        chart.tooltip().format('Time Spent on Check: {%Value}');
+        */
+
+        // Set text formatter.
+        chart.tooltip().titleFormat(function () {
+            return new Date(this.x).toISOString().substring(12, 19);
+        });
+
+        chart.tooltip().format(function () {
+            return new Date(this.x).toISOString().substring(12, 19);
+        });
+
+
+        // set container id for the chart
+        chart.container('routeGraphDiv');
+
+        var background = chart.background();
+        background.enabled(true);
+        background.fill("black");
+
+        // initiate chart drawing
+        chart.draw();
+    });
 }
 
 function showSettings(sender) {
