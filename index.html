@@ -20,16 +20,16 @@
 
     <body>
 
-    <div id="topbar" style="height: 50px">
-        <span style="margin-left: 65px"> Time: </span>
-        <span id='timer'> 0:00:00 </span>
-        <span> Number of Checks: </span>
-        <span id='checkCount'> 0 / 254 </span>
-        <button id='routeGraphButton' onclick='buildRouteGraph(document.getElementById("routeGraphDiv"))'>🔧</div>
-        <div id='routeGraphDiv' style="height: 400px; width: 400px"></div>
-    </div>
+        <div id="topbar" style="height: 50px">
+            <span style="margin-left: 65px"> Time: </span>
+            <span id='timer'> 0:00:00 </span>
+            <span> Number of Checks: </span>
+            <span id='checkCount'> 0 / 254 </span>
+            <button id='routeGraphButton' onclick='buildRouteGraph(document.getElementById("routeGraphDiv"))'>🔧</div>
+            <div id='routeGraphDiv' style="height: 400px; width: 400px"></div>
+        </div>
 
-        <div id='layoutdiv'>
+        <div id='layoutdiv' oncontextmenu="return false;">
             <div id='itemdiv' class='itemdiv'>
             </div>
             <div id='mapdiv' class='mapdiv'>
@@ -42,9 +42,9 @@
             </div>
         </div>
 
-        <!-- Setting panel-->
-        <button id='settingsbutton' type='button' onclick='showSettings(this)'>🔧</button>
-        <fieldset id='settings' class='settings'>
+            <!-- Setting panel-->
+        <button id='settingsbutton' type='button' onclick='showSettings(this)' oncontextmenu="return false;">🔧</button>
+        <fieldset id='settings' class='settings' oncontextmenu="return false;">
             <legend>Settings</legend>
             <fieldset>
                 <legend>Item Tracker</legend>

@@ -36,13 +36,26 @@ var dungeonSelect = 0;
 
 var startTime;
 
-// Ordered list of CheckData that will build out a route
+/** Ordered list of CheckData that will build out a route. */
 var route = [];
 
-/* Enum of what type of check a checkData is */
+/** Ordered list of checks that were skipped. */
+var skippedChecks = [];
+
+/** {string} -> [{CheckData}...] Map of item name to all of the locations where that item was found. */
+var itemLocationMap = {};
+
+/** Enum of what type of check a checkData is. */
 var CheckType = {
     DUNGEON : 'dungeon',
     CHEST : 'chest'
+}
+
+/* Enum of what mouse button was used to click */
+var ClickType = {
+    LEFT : 0,
+    MIDDLE : 1,
+    RIGHT: 2
 }
 
 /**
@@ -72,8 +85,6 @@ CheckData.prototype.getCheckName = function() {
         return undefined;
     }
 };
-
-var itemLocationMap = {};
 
 function setCookie(obj) {
     var d = new Date();
@@ -243,8 +254,13 @@ function updateTime() {
 
 setInterval(updateTime, 1000);
 
-// Event of clicking a chest on the map
-function toggleChest(chestIndex) {
+/**
+ * Event of clicking a chest on the map
+ *
+ * @param {number} chestIndex Index of the chest in the global chests list
+ * @param {boolean} wasSkipped Whether the check was opened or skipped
+ */
+function toggleChest(chestIndex, wasSkipped) {
     chests[chestIndex].isOpened = !chests[chestIndex].isOpened;
     var inLogic = chests[chestIndex].isAvailable();
 
@@ -252,10 +268,10 @@ function toggleChest(chestIndex) {
 
     // Update last opened check
     if (chests[chestIndex].isOpened) {
-        addToRoute(checkData);
+        addToRoute(checkData, wasSkipped);
 
     } else {
-        removeFromRoute(checkData);
+        removeFromRoute(checkData, wasSkipped);
     }
 
     refreshChest(chestIndex);
@@ -286,6 +302,7 @@ function unhighlightDungeon(x) {
         document.getElementById('dungeon' + x).style.backgroundImage = 'url(images/poi.png)';
 }
 
+// TODO: pull out common code from here and initial init into helper function
 function clickDungeon(d) {
     document.getElementById('dungeon' + dungeonSelect).style.backgroundImage = 'url(images/poi.png)';
     dungeonSelect = d;
@@ -294,7 +311,8 @@ function clickDungeon(d) {
     // Update the DOM object that shows the dungeon name in the submaparea
     var dungeonNameDOM = document.getElementById('submaparea');
     dungeonNameDOM.innerHTML = dungeons[dungeonSelect].name;
-    dungeonNameDOM.onclick = new Function('toggleDungeon(this,' + dungeonSelect + ')');
+    dungeonNameDOM.onclick = new Function('toggleDungeon(this, false,' + dungeonSelect + ')');
+    dungeonNameDOM.onauxclick = new Function('toggleDungeon(this, true,' + dungeonSelect + ')');
     dungeonNameDOM.onmouseover = new Function('highlightListItem(this)');
     dungeonNameDOM.onmouseout = new Function('unhighlightListItem(this)');
     dungeonNameDOM.style.cursor = 'pointer';
@@ -304,27 +322,30 @@ function clickDungeon(d) {
     DClist.innerHTML = '';
 
     for (var key in dungeons[dungeonSelect].chestlist) {
-        var s = document.createElement('li');
-        s.innerHTML = key;
+        var dungeonCheckDOM = document.createElement('li');
+        dungeonCheckDOM.innerHTML = key;
 
         if (dungeons[dungeonSelect].chestlist[key].isOpened) {
-            s.className = "DCopened";
+            dungeonCheckDOM.className = "DCopened";
         } else if ( dungeons[dungeonSelect].chestlist[key].isAvailable()) {
-            s.className = "DCavailable";
+            dungeonCheckDOM.className = "DCavailable";
         } else {
-            s.className = "DCunavailable";
+            dungeonCheckDOM.className = "DCunavailable";
         }
 
-        s.onclick = new Function('toggleDungeonChest(this,' + dungeonSelect + ',"' + key + '")');
-        s.onmouseover = new Function('highlightListItem(this)');
-        s.onmouseout = new Function('unhighlightListItem(this)');
-        s.style.cursor = "pointer";
+        // NOTE: this uses the innerHTML as the chest name. This is a hack because the reference to "key" was not working
+        dungeonCheckDOM.onclick = new Function('toggleDungeonChest(this, false, dungeonSelect, this.innerHTML)');
+        dungeonCheckDOM.onauxclick = new Function('toggleDungeonChest(this, true, dungeonSelect, this.innerHTML)');
 
-        DClist.appendChild(s);
+        dungeonCheckDOM.onmouseover = new Function('highlightListItem(this)');
+        dungeonCheckDOM.onmouseout = new Function('unhighlightListItem(this)');
+        dungeonCheckDOM.style.cursor = "pointer";
+
+        DClist.appendChild(dungeonCheckDOM);
     }
 }
 
-function toggleDungeonChest(sender, dungeonIndex, chestIndex) {
+function toggleDungeonChest(sender, wasSkipped, dungeonIndex, chestIndex) {
     dungeons[dungeonIndex].chestlist[chestIndex].isOpened = !dungeons[dungeonIndex].chestlist[chestIndex].isOpened;
     var inLogic = dungeons[dungeonIndex].chestlist[chestIndex].isAvailable();
 
@@ -335,14 +356,14 @@ function toggleDungeonChest(sender, dungeonIndex, chestIndex) {
         sender.className = 'DCopened';
 
         // Update last opened check and add to route
-        addToRoute(checkData);
+        addToRoute(checkData, wasSkipped);
 
     } else if (dungeons[dungeonIndex].chestlist[chestIndex].isAvailable()) {
         sender.className = 'DCavailable';
-        removeFromRoute(checkData);
+        removeFromRoute(checkData, wasSkipped);
     } else {
         sender.className = 'DCunavailable';
-        removeFromRoute(checkData);
+        removeFromRoute(checkData, wasSkipped);
     }
 
     updateMap();
@@ -353,10 +374,11 @@ function toggleDungeonChest(sender, dungeonIndex, chestIndex) {
  * Opens or closes all chests in a dungeon.
  * Note: This does not necessarily toggle individual chests!
  *
- * @param sender The DOM object that was invoked. Here it will be the submaparea object (dungeon title)
- * @param dungeonIndex The index of the dungeon currently displayed in the submaparea
+ * @param {DOM object} sender The DOM object that was invoked. Here it will be the submaparea object (dungeon title)
+ * @param {boolean} wasSkipped Whether the check was opened or skipped
+ * @param {number} dungeonIndex The index of the dungeon currently displayed in the submaparea
  */
-function toggleDungeon(sender, dungeonIndex) {
+function toggleDungeon(sender, wasSkipped, dungeonIndex) {
     var DClist = document.getElementById('submaplist');
     var chestlistNames = Object.keys(dungeons[dungeonIndex].chestlist);
 
@@ -373,7 +395,7 @@ function toggleDungeon(sender, dungeonIndex) {
               sender.className = dungeons[dungeonIndex].chestlist[currentChestName].isAvailable()
                       ? 'DCavailable'
                       : 'DCunavailable';
-                      removeFromRoute(checkData);
+                      removeFromRoute(checkData, wasSkipped);
             }
         }
     // If the dungeon is not cleared (regardless of availability logic)
@@ -388,7 +410,7 @@ function toggleDungeon(sender, dungeonIndex) {
                 var checkData = new CheckData(CheckType.DUNGEON, dungeonIndex, currentChestName, dungeons[dungeonIndex].chestlist[currentChestName].isAvailable, dungeons[dungeonIndex].name)
                 dungeons[dungeonIndex].chestlist[currentChestName].isOpened = true;
                 sender.className = 'DCopened';
-                addToRoute(checkData);
+                addToRoute(checkData, wasSkipped);
           }
         }
     } else {
@@ -431,30 +453,50 @@ function setGanonLogic(sender) {
     saveCookie();
 }
 
-function addToRoute(checkData) {
-  route.push(checkData);
+/**
+ * Updates the route to track that a check was opened or
+ * updates the skipped checks object if it was skipped (usually due to hint, CSMC, etc)
+ * Skipped items will not be counted towards time in a region in the route summary
+ *
+ * Also starts timer if first check in run
+ *
+ * @param {CheckData} checkData the check that was routed
+ * @param {boolean} wasSkipped whether the check was skipped or opened
+ */
+function addToRoute(checkData, wasSkipped) {
+    if (!wasSkipped) {
+        route.push(checkData);
 
-  if (route.length == 1) {
-    startTime = new Date();
-  }
+        if (route.length == 1) {
+        startTime = new Date();
+        }
 
-  checkCountDOM = document.getElementById("checkCount");
-  checkCountDOM.innerHTML = route.length + "/" + TOTAL_CHECKS;
+        var checkCountDOM = document.getElementById("checkCount");
+        checkCountDOM.innerHTML = route.length + "/" + TOTAL_CHECKS;
+    } else {
+        skippedChecks.push(checkData);
+    }
 }
 
 /**
- * Removes a check from the route.
+ * Removes a check from the route and from the skipped checks.
  *
- * @param checkData check to remove from the route
+ * @param {CheckData} checkData check to remove from the route
+ * @param {boolean} wasSkipped whether the check was skipped or opened
  */
-function removeFromRoute(checkData) {
+function removeFromRoute(checkData, wasSkipped) {
     for (var i = 0; i < route.length; i++) {
         if (route[i].getCheckName() == checkData.getCheckName()) {
             route.splice(i, 1);
+        }
+    }
 
-            checkCountDOM = document.getElementById("checkCount");
-            checkCountDOM.innerHTML = route.length + "/" + TOTAL_CHECKS;
-            return;
+    var checkCountDOM = document.getElementById("checkCount");
+    checkCountDOM.innerHTML = route.length + "/" + TOTAL_CHECKS;
+
+    for (var i = 0; i < skippedChecks.length; i++) {
+        if (skippedChecks[i].getCheckName() == checkData.getCheckName()) {
+            skippedChecks.splice(i, 1);
         }
     }
 }
@@ -513,9 +555,9 @@ function setZoom(target, sender) {
  * Sets which dungeon corresponds to a medallion.
  * NOTE: this assumes it is being invoked from a dungeon selector
  *
- * @param row the row of the medallion in the item grid
- * @param index the idex of the medallion within the item grid row
- * @param dungeonIndex the dungeon corresponding to the medallion
+ * @param {number} row the row of the medallion in the item grid
+ * @param {number} index the idex of the medallion within the item grid row
+ * @param {number} dungeonIndex the dungeon corresponding to the medallion
  */
 function setMedallionDungeon(row, index, dungeonIndex) {
     medallions[itemLayout[row][index]] = dungeonIndex;
@@ -1205,7 +1247,8 @@ function populateMapdiv() {
         s.style.backgroundImage = 'url(images/poi.png)';
         s.style.color = 'black';
         s.id = k;
-        s.onclick = new Function('toggleChest(' + k + ')');
+        s.onclick = new Function('toggleChest(' + k + ', false)');
+        s.onauxclick = new Function('toggleChest(' + k + ', true)');
         s.onmouseover = new Function('highlight(' + k + ')');
         s.onmouseout = new Function('unhighlight(' + k + ')');
         s.style.left = chests[k].x;
@@ -1270,7 +1313,8 @@ function populateMapdiv() {
     // Update the DOM object that shows the dungeon name in the submaparea
     var dungeonNameDOM = document.getElementById('submaparea');
     dungeonNameDOM.innerHTML = dungeons[dungeonSelect].name;
-    dungeonNameDOM.onclick = new Function('toggleDungeon(this,' + dungeonSelect + ')');
+    dungeonNameDOM.onclick = new Function('toggleDungeon(this, false,' + dungeonSelect + ')');
+    dungeonNameDOM.onauxclick = new Function('toggleDungeon(this, true,' + dungeonSelect + ')');
     dungeonNameDOM.onmouseover = new Function('highlightListItem(this)');
     dungeonNameDOM.onmouseout = new Function('unhighlightListItem(this)');
     dungeonNameDOM.style.cursor = 'pointer';
@@ -1278,25 +1322,27 @@ function populateMapdiv() {
 
     document.getElementById('dungeon' + dungeonSelect).style.backgroundImage = 'url(images/highlighted.png)';
     for (var key in dungeons[dungeonSelect].chestlist) {
-        var s = document.createElement('li');
-        s.innerHTML = key
+        var dungeonCheckDOM = document.createElement('li');
+        dungeonCheckDOM.innerHTML = key
 
         if (dungeons[dungeonSelect].chestlist[key].isOpened) {
-            s.className = 'DCopened';
+            dungeonCheckDOM.className = 'DCopened';
         }
         else if ( dungeons[dungeonSelect].chestlist[key].isAvailable()) {
-            s.className = 'DCavailable';
+            dungeonCheckDOM.className = 'DCavailable';
         }
         else {
-            s.className = 'DCunavailable';
+            dungeonCheckDOM.className = 'DCunavailable';
         }
 
-        s.onclick = new Function('toggleDungeonChest(this,' + dungeonSelect + ',"' + key + '")');
-        s.onmouseover = new Function('highlightListItem(this)');
-        s.onmouseout = new Function('unhighlightListItem(this)');
-        s.style.cursor = 'pointer';
+        // NOTE: this uses the innerHTML as the chest name. This is a hack because a reference to "key" was not working
+        dungeonCheckDOM.onclick = new Function('toggleDungeonChest(this, false, dungeonSelect, this.innerHTML)');
+        dungeonCheckDOM.onauxclick = new Function('toggleDungeonChest(this, true, dungeonSelect, this.innerHTML)');
+        dungeonCheckDOM.onmouseover = new Function('highlightListItem(this)');
+        dungeonCheckDOM.onmouseout = new Function('unhighlightListItem(this)');
+        dungeonCheckDOM.style.cursor = 'pointer';
 
-        document.getElementById('submaplist').appendChild(s);
+        document.getElementById('submaplist').appendChild(dungeonCheckDOM);
     }
 }
 
