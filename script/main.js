@@ -516,12 +516,7 @@ function handleItemPickup(item) {
     }
 
     // Make a deep copy of lastCheckOpened
-    var checkData = new CheckData(
-          lastCheckOpened.checkType,
-          lastCheckOpened.dungeonIndex,
-          lastCheckOpened.chestIndex,
-          lastCheckOpened.getCheckName,
-          lastCheckOpened.location);
+    var checkData = Object.assign(new CheckData(), lastCheckOpened);
 
     if (itemLocationMap[item] == undefined) {
       itemLocationMap[item] = [];
@@ -588,6 +583,7 @@ function buildRouteGraph(containerDOM) {
 
     var data = [];
     var durations = [];
+    var totalDur = 0
 
     //data.push(["", ...Object.values(locations)]);
 
@@ -596,7 +592,7 @@ function buildRouteGraph(containerDOM) {
         //var endTime = route[i - 1] != undefined ? route[i].timestamp.getTime() - route[i-1].timestamp.getTime() : 0);
         var duration = route[i - 1] != undefined ? route[i].timestamp.getTime() - route[i-1].timestamp.getTime() : 0;
         durations.push(duration);
-        var totalDur = durations.reduce(function(a, b) { return a + b; });
+        totalDur += duration;
 
         locations[route[i].location] += duration;
 
@@ -617,9 +613,6 @@ function buildRouteGraph(containerDOM) {
 
         // turn on chart animation
         chart.animation(true);
-
-        // force chart to stack values by Y scale.
-        chart.yScale().stackMode('value');
 
         // turn on the crosshair
         chart.crosshair().enabled(true).yLabel().enabled(false);
@@ -652,32 +645,85 @@ function buildRouteGraph(containerDOM) {
         // turn on legend
         chart.legend().enabled(true).fontSize(13).padding([0, 0, 25, 0]);
 
-        /*
-        // create barmekko chart with data
-        var chart = anychart.barmekko(data);
-        // set chart title text settings
-        //chart.title('Government Requests to Facebook for Data, by Country');
-
-        // set chart padding
-        //chart.padding().left(75);
-
-        // enabled labels
-        chart.labels(true);
-
-        // set tooltip settings
-        chart.tooltip().format('Time Spent on Check: {%Value}');
-        */
-
         // Set text formatter.
         chart.tooltip().titleFormat(function () {
-            return new Date(this.x).toISOString().substring(12, 19);
+            time = this.points.map(point => point.value).reduce((a, b) => a+b);
+            return new Date(time).toISOString().substring(12, 19);
         });
 
-        //chart.tooltip().format(function () {
-        //    return new Date(this.x).toISOString().substring(12, 19);
-        //});
+        chart.tooltip().format(function () {
+            return this.seriesName + ": " + new Date(this.value).toISOString().substring(14, 19);
+        });
 
         //chart.xScale(anychart.scales.dateTime());
+        // force chart to stack values by Y scale.
+        chart.yScale().stackMode('value');
+        chart.yAxis().labels().format(function() {
+            return new Date(this.value).toISOString().substring(12, 19);
+        });
+
+        for (var i = 0; i < Object.values(itemLocationMap).length; i++) {
+            var itemLocations = Object.values(itemLocationMap)[i];
+            var itemName = Object.keys(itemLocationMap)[i];
+            if (!coreItems.includes(itemName) && !songs.includes(itemName) && medallions[itemName] == undefined) {
+                continue;
+            }
+
+            itemLocations.forEach(check => {
+                var locationIndex = itemLocations.indexOf(check);
+                var checkIndex;
+                for (var j = 0; j < route.length; j++) {
+                    //if (route[j].getCheckName() == check.getCheckName()) {
+                    if (route[j].dungeonIndex == check.dungeonIndex && route[j].chestIndex == check.chestIndex) {
+                       checkIndex = j;
+                       break;
+                    }
+                }
+
+                // create an Ellipse annotation
+                var rectangle = chart.annotations().rectangle({
+                    xAnchor: checkIndex,
+                    valueAnchor: totalDur * 1,
+                    secondXAnchor: checkIndex + 7,
+                    secondValueAnchor: totalDur * (1.14 - .12 * route.length / 5 / 50),
+                });
+
+                var imageUrl;
+                if (typeof items[itemName] == 'boolean') {
+                    imageUrl = 'images/' + itemName + '.png';
+                } else {
+                    imageUrl = 'images/' + itemName + (locationIndex + 1) + '.png';
+                }
+
+                rectangle.fill({
+                        src: imageUrl,
+                        mode: 'stretch',
+                        opacity: 1
+                    });
+
+                //disable interactivity for the Ellipse annotation
+                rectangle.allowEdit(false);
+
+
+                var verticalMarker = chart.lineMarker(i + locationIndex * 255);
+                verticalMarker.value(checkIndex);
+                verticalMarker.layout("vertical");
+                verticalMarker.scale(chart.xScale());
+                verticalMarker.stroke({color: '#e0e0e0', thickness: 1, lineCap: 'round', opacity: .2});
+
+                /*var itemText = progressiveItemCanonicalNames[itemName] != undefined ? progressiveItemCanonicalNames[itemName][locationIndex] : itemName;
+                var text = chart.textMarker(i + locationIndex * 255);
+                text.value(checkIndex);
+                text.axis(chart.xAxis());
+                text.text(itemText);
+                text.align("top");
+                text.anchor("left-bottom");
+                text.offsetX(-3);
+                text.offsetY(-6.5 * itemText.length - 7);
+                text.rotation(-90);
+                text.fontColor("#e0e0e0");*/
+            });
+        }
 
         // set container id for the chart
         chart.container('routeGraphDiv');
@@ -793,7 +839,7 @@ function ResetTracker() {
     chests.forEach(chest => delete chest.isOpened);
     dungeons.forEach(dungeon => Object.values(dungeon.chestlist).forEach(chest => delete chest.isOpened));
     items = Object.assign(baseItems);
-    medallions = JSON.parse(JSON.stringify(defaultMedallions));
+    medallions = Object.assign(defaultMedallions);
 
     updateGridItemAll();
     updateMap();

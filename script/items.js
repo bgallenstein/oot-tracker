@@ -100,7 +100,7 @@ var baseItems = {
     Scale: 0,
     StoneofAgony: false,
     Magic: 0,
-    ZoraLetter: false, 
+    ZoraLetter: false,
 
     ZeldasLullaby: false,
     EponasSong: false,
@@ -131,7 +131,7 @@ var baseItems = {
 var itemsMin = {
     Bow: 0,
     Slingshot: 0,
-    Bombs: 0,    
+    Bombs: 0,
     Hookshot: 0,
     Ocarina: 1,
     Bottle: 0,
@@ -145,7 +145,7 @@ var itemsMin = {
 var itemsMax = {
     Bow: 3,
     Slingshot: 3,
-    Bombs: 3,    
+    Bombs: 3,
     Hookshot: 2,
     Ocarina: 2,
     Bottle: 4,
@@ -156,4 +156,33 @@ var itemsMax = {
     Skulltula: 5,
 };
 
+var progressiveItemCanonicalNames = {
+    Bow: ["Bow", "Bigger Quiver", "Biggest Quiver"],
+    Slingshot: ["Slingshot", "Bigger Seed Bag", "Biggest Seed Bag"],
+    Bombs: ["Bombs", "Bigger Bomb Bag", "Biggest Bomb Bag"],
+    Hookshot: ["Hookshot", "Longshot"],
+    Ocarina: ["Fairy Ocarina", "Ocarina of Time"],
+    Bottle: ["Bottle", "Bottle", "Bottle", "Bottle"],
+    Glove: ["Goron Bracelet", "Silver Gauntlets", "Golden Gauntlets"],
+    Scale: ["Silver Scale", "Gold Scale"],
+    Magic: ["Magic Meter", "Double Magic Meter"],
+    Wallet: ["Adult's Wallet", "Giant's Wallet"],
+    Skulltula: ["10 Skulls", "20 Skulls", "30 Skulls", "40 Skulls", "50 Skulls"]
+};
+
+var coreItems = ["Bow", "Bombs", "Hookshot", "Glove", "Magic", "MirrorShield", "IronBoots", "HoverBoots", "Hammer", "ZoraLetter", "Dins"];
+var songs = [
+    "ZeldasLullaby",
+    "EponasSong",
+    "SunsSong",
+    "SariasSong",
+    "SongofTime",
+    "SongofStorms",
+    "MinuetofForest",
+    "PreludeofLight",
+    "BoleroofFire",
+    "SerenadeofWater",
+    "NocturneofShadow",
+    "RequiemofSpirit"];
+    
 var items = Object.assign(baseItems);
