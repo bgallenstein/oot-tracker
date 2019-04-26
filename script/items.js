@@ -170,7 +170,7 @@ var progressiveItemCanonicalNames = {
     Skulltula: ["10 Skulls", "20 Skulls", "30 Skulls", "40 Skulls", "50 Skulls"]
 };
 
-var coreItems = ["Bow", "Bombs", "Hookshot", "Glove", "Magic", "MirrorShield", "IronBoots", "HoverBoots", "Hammer", "ZoraLetter", "Dins"];
+var coreItems = ["Bow", "Bombs", "Boomerang", "Hookshot", "Glove", "Magic", "MirrorShield", "IronBoots", "HoverBoots", "Hammer", "ZoraLetter", "Dins", "Light", "Farores"];
 var songs = [
     "ZeldasLullaby",
     "EponasSong",
@@ -184,5 +184,5 @@ var songs = [
     "SerenadeofWater",
     "NocturneofShadow",
     "RequiemofSpirit"];
-    
+
 var items = Object.assign(baseItems);

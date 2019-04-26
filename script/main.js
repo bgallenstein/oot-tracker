@@ -39,6 +39,15 @@ var startTime;
 /** Ordered list of CheckData that will build out a route. */
 var route = [];
 
+/** Ordered list of RouteEdge representing time between two regions. */
+var routeEdges = [];
+
+/** Map of location name to time spent there (millis). */
+var locationDurationsTotal = {};
+
+/** Ordered list of RouteEdge representing time in a visit to a region. */
+var locationVisitDurations = [];
+
 /** Ordered list of checks that were skipped. */
 var skippedChecks = [];
 
@@ -56,6 +65,20 @@ var ClickType = {
     LEFT : 0,
     MIDDLE : 1,
     RIGHT: 2
+}
+
+/**
+ * Class representing the travel time between two locations.
+ */
+function RouteEdge(fromCheckData, toCheckData) {
+    this.fromLocation = fromCheckData.location;
+    this.toLocation = toCheckData.location;
+    this.fromCheckData = fromCheckData;
+    this.toCheckData = toCheckData;
+}
+
+RouteEdge.prototype.getDuration = function() {
+    return this.toCheckData.timestamp - this.fromCheckData.timestamp;
 }
 
 /**
@@ -465,12 +488,24 @@ function setGanonLogic(sender) {
  */
 function addToRoute(checkData, wasSkipped) {
     if (!wasSkipped) {
+        // Update the route
         route.push(checkData);
 
+        // Start the timer if this was the first check
         if (route.length == 1) {
-        startTime = new Date();
+            startTime = new Date();
         }
 
+        // If we travelled between locations for this check, update route edges
+        var previousCheck = route[route.length - 2];
+        if (previousCheck != undefined && checkData.location != previousCheck.location) {
+            var routeEdge = new RouteEdge(previousCheck, checkData);
+            routeEdges.push(routeEdge);
+
+            handleLeavingLocation(previousCheck);
+        }
+
+        // Update the check progress
         var checkCountDOM = document.getElementById("checkCount");
         checkCountDOM.innerHTML = route.length + "/" + TOTAL_CHECKS;
     } else {
@@ -478,6 +513,28 @@ function addToRoute(checkData, wasSkipped) {
     }
 }
 
+/**
+ * Handles when a location is left, including updating the time spent there
+ *
+ * @param {CheckData} lastLocationCheck the last check opened in the location
+ */
+function handleLeavingLocation(lastLocationCheck) {
+    if (locationDurationsTotal[lastLocationCheck.location] == undefined) {
+        locationDurationsTotal[lastLocationCheck.location] = 0;
+    }
+
+    var timeInPreviousLocation = lastLocationCheck.timestamp - startTime;
+    var firstCheck = route[0];
+    for (var i = route.length - 2; i >= 0; i--) {
+        if(route[i] != undefined && route[i].location != lastLocationCheck.location) {
+            timeInPreviousLocation = lastLocationCheck.timestamp - route[i+1].timestamp;
+            firstCheck = route[i+1];
+            break;
+        }
+    }
+    locationDurationsTotal[lastLocationCheck.location] += timeInPreviousLocation;
+    locationVisitDurations.push(new RouteEdge(firstCheck, lastLocationCheck));
+}
 /**
  * Removes a check from the route and from the skipped checks.
  *
@@ -561,55 +618,70 @@ function setMedallionDungeon(row, index, dungeonIndex) {
 
 }
 
-function buildRouteGraph(containerDOM) {
-    var colors = [];
-
-    scm = new ColorScheme;
-    scm.from_hue(920099)
-       .scheme('tetrade')
-       .distance(1)
-       .web_safe(true);
-
-    colors = scm.colors();
-
-    for (let i = colors.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [colors[i], colors[j]] = [colors[j], colors[i]];
+function toggleRouteAnalytics() {
+    if (document.getElementById("layoutdiv").style.visibility == 'visible') {
+        Object.values(document.getElementById("routeGraphDiv").children).forEach(child => child.remove());
+        Object.values(document.getElementById("barGraphDiv").children).forEach(child => child.remove());
+        buildRouteGraph();
+    } else {
+        document.getElementById("layoutdiv").style.visibility = 'visible';
+        document.getElementById("parentGraphDiv").style.visibility = 'hidden';
     }
+}
 
-    var color = 0;
+function buildRouteGraph() {
+    document.getElementById("parentGraphDiv").style.visibility = 'visible';
+    document.getElementById("layoutdiv").style.visibility = 'hidden';
+
+    // Populate the location durations with 0s
     var locations = {};
     route.forEach(check => locations[check.location] = 0);
 
     var data = [];
-    var durations = [];
+    var data2 = [];
     var totalDur = 0
 
-    //data.push(["", ...Object.values(locations)]);
-
+    // Populate data with checkIndex as x and all location durations as y
     for (var i = 0; i < route.length; i++) {
+        if (route[i - 1] != undefined) { //&& route[i].location == route[i - 1].location) {
+            var duration = route[i - 1] != undefined ? route[i].timestamp.getTime() - route[i-1].timestamp.getTime() : 0;
+            totalDur += duration;
 
-        //var endTime = route[i - 1] != undefined ? route[i].timestamp.getTime() - route[i-1].timestamp.getTime() : 0);
-        var duration = route[i - 1] != undefined ? route[i].timestamp.getTime() - route[i-1].timestamp.getTime() : 0;
-        durations.push(duration);
-        totalDur += duration;
+            locations[route[i].location] += duration;
+        }
 
-        locations[route[i].location] += duration;
-
-        //data.push([route[i].getCheckName(), ...Object.values(locations)]);
         data.push([i, ...Object.values(locations)]);
     }
+
+    var routeBarGraphDurations = [];
+    routeBarGraphDurations.push(...routeEdges);
+    routeBarGraphDurations.push(...locationVisitDurations)
+    routeBarGraphDurations.sort((a, b) => a.fromCheckData.timestamp.getTime() > b.fromCheckData.timestamp.getTime() ? 1
+        : (a.fromCheckData.timestamp.getTime() < b.fromCheckData.timestamp.getTime() ? -1
+            : a.toCheckData.timestamp.getTime() > b.toCheckData.timestamp.getTime() ? 1
+                : a.toCheckData.timestamp.getTime() < b.toCheckData.timestamp.getTime() ? -1 : 0));
+
+    if (routeBarGraphDurations[routeBarGraphDurations.length - 1].fromLocation != route[route.length - 1].location && routeBarGraphDurations[routeBarGraphDurations.length - 1].toCheckData.getCheckName() != route[route.length - 1].getCheckName()) {
+        routeBarGraphDurations.push(new RouteEdge(routeBarGraphDurations[routeBarGraphDurations.length - 1].toCheckData, route[route.length-1]));
+    }
+
+    data2.push(["Route", ...routeBarGraphDurations.map(checkEdge => checkEdge.getDuration())])
 
     anychart.onDocumentReady(function () {
 
         // create data set on our data
         var dataSet = anychart.data.set(data);
+        var dataSet2 = anychart.data.set(data2);
 
         var series = [];
         Object.values(locations).forEach(location => series.push(dataSet.mapAs({'x': 0, 'value': series.length + 1})))
 
+        var series2 = [];
+        Object.values(routeBarGraphDurations).forEach(checkEdge => series2.push(dataSet2.mapAs({'x': 0, 'value': series2.length + 1})))
+
         // create bar chart
         var chart = anychart.area();
+        var bar = anychart.bar();
 
         // turn on chart animation
         chart.animation(true);
@@ -620,8 +692,8 @@ function buildRouteGraph(containerDOM) {
         chart.crosshair().yStroke(null).xStroke('#fff').zIndex(99);
 
         // helper function to setup label settings for all series
-        var setupSeries = function (seriesData, name) {
-            var s = chart.area(seriesData);
+        var setupSeries = function (graphRef, seriesData, name) {
+            var s = graphRef.area(seriesData);
             s.stroke('3 #fff 1');
             s.fill(function () {
                 return this.sourceColor + ' 0.8'
@@ -635,7 +707,15 @@ function buildRouteGraph(containerDOM) {
         };
 
         for (var i = 0; i < Object.values(locations).length; i++) {
-            setupSeries(series[i], Object.keys(locations)[i])
+            setupSeries(chart, series[i], Object.keys(locations)[i])
+        }
+
+        for (var i = 0; i < routeBarGraphDurations.length; i++) {
+            var tempSeries = bar.bar(series2[i]);
+            var tempSeriesName = routeBarGraphDurations[i].fromLocation == routeBarGraphDurations[i].toLocation ? routeBarGraphDurations[i].fromLocation : routeBarGraphDurations[i].fromLocation + " - " + routeBarGraphDurations[i].toLocation
+            tempSeries.name(tempSeriesName);
+            tempSeries.stroke('3 #fff 1');
+            tempSeries.hovered().stroke('3 #fff 1');
         }
 
         // set interactivity and toolitp settings
@@ -655,13 +735,22 @@ function buildRouteGraph(containerDOM) {
             return this.seriesName + ": " + new Date(this.value).toISOString().substring(14, 19);
         });
 
-        //chart.xScale(anychart.scales.dateTime());
+        bar.tooltip().format(function () {
+            return this.seriesName + ": " + new Date(this.value).toISOString().substring(14, 19);
+        });
+
         // force chart to stack values by Y scale.
         chart.yScale().stackMode('value');
         chart.yAxis().labels().format(function() {
             return new Date(this.value).toISOString().substring(12, 19);
         });
+        bar.yScale().stackMode('value');
+        bar.yAxis().labels().format(function() {
+            return new Date(this.value).toISOString().substring(12, 19);
+        });
 
+
+        // Set up the item locations at their proper x position in the run
         for (var i = 0; i < Object.values(itemLocationMap).length; i++) {
             var itemLocations = Object.values(itemLocationMap)[i];
             var itemName = Object.keys(itemLocationMap)[i];
@@ -680,12 +769,13 @@ function buildRouteGraph(containerDOM) {
                     }
                 }
 
-                // create an Ellipse annotation
+                var itemImageHeight = (.15 - .12 * route.length / 5 / 50);
+                var itemImageWidth = Math.round(itemImageHeight * document.getElementById("routeGraphDiv").offsetHeight / document.getElementById("routeGraphDiv").offsetWidth * route.length);
                 var rectangle = chart.annotations().rectangle({
                     xAnchor: checkIndex,
-                    valueAnchor: totalDur * 1,
-                    secondXAnchor: checkIndex + 7,
-                    secondValueAnchor: totalDur * (1.14 - .12 * route.length / 5 / 50),
+                    valueAnchor: totalDur * (.98 + (2 * (coreItems.includes(itemName)) + (medallions[itemName] != undefined)) * (itemImageHeight + .01)),
+                    secondXAnchor: checkIndex + itemImageWidth,
+                    secondValueAnchor: totalDur * (.98 + itemImageHeight + (2 * (coreItems.includes(itemName)) + (medallions[itemName] != undefined)) * (itemImageHeight + .01)),
                 });
 
                 var imageUrl;
@@ -726,7 +816,7 @@ function buildRouteGraph(containerDOM) {
         }
 
         // set container id for the chart
-        chart.container('routeGraphDiv');
+        chart.container(document.getElementById("routeGraphDiv"));
 
         var background = chart.background();
         background.enabled(true);
@@ -734,6 +824,16 @@ function buildRouteGraph(containerDOM) {
 
         // initiate chart drawing
         chart.draw();
+
+        // set container id for the chart
+        bar.container(document.getElementById("barGraphDiv"));
+
+        var background = bar.background();
+        background.enabled(true);
+        background.fill("black");
+
+        // initiate chart drawing
+        bar.draw();
     });
 }
 

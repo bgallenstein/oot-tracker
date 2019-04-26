@@ -25,11 +25,15 @@
             <span id='timer'> 0:00:00 </span>
             <span> Number of Checks: </span>
             <span id='checkCount'> 0 / 254 </span>
-            <button id='routeGraphButton' onclick='buildRouteGraph(document.getElementById("routeGraphDiv"))'>🔧</div>
-            <div id='routeGraphDiv' style="height: 400px; width: 400px"></div>
+            <button id='routeGraphButton' onclick='toggleRouteAnalytics()'>🔧</div>
         </div>
 
-        <div id='layoutdiv' oncontextmenu="return false;">
+        <div id='parentGraphDiv' style="visibility: hidden; position: absolute">
+            <div id='routeGraphDiv' style="height: 600px; width: 800px;"></div>
+            <div id='barGraphDiv' style="height: 600px; width: 800px;"></div>
+        </div>
+
+        <div id='layoutdiv' style="visibility: visible;" oncontextmenu="return false;">
             <div id='itemdiv' class='itemdiv'>
             </div>
             <div id='mapdiv' class='mapdiv'>
@@ -79,9 +83,5 @@
         <script>
             init();
         </script>
-
-        <footer style='bottom:0; width:100%; text-align: center; position: relative; color:grey'>
-            Ocarina of Time Item Randomizer Tracker v1.2
-        </footer>
     </body>
 </html>
